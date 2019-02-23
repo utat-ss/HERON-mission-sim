@@ -6,7 +6,7 @@ def make_orbit_scene(solar_sys, satellite):
 
     rsun = solar_sys['sun_radius']
     rearth = solar_sys['earth_radius']
-    psun = (0, solar_sys['sun_dist'], 0)
+    psun = solar_sys['sun_dist'] * n.array(solar_sys['sun_vector'])
     pearth = (0, 0, 0)
     altitude = satellite.orbit['altitude']
 
@@ -28,6 +28,8 @@ def make_orbit_scene(solar_sys, satellite):
     solar_sys['sun'] = sun
     solar_sys['earth'] = earth
     satellite.sat3d = sat
+
+    satellite.zrot = 0
 
     return scene, solar_sys, satellite
 
@@ -52,20 +54,31 @@ def make_view_scene(solar_sys, satellite):
     return sat_view_scene, solar_sys, satellite
 
 
-def animate(solar_sys, satellite, t, dt):
+def animate(solar_sys, satellite, t, dt, curves, total_time):
     orbit = satellite.orbit
     new_pos = orbit_xyz(t, orbit['theta'], orbit['phi']) * \
         (solar_sys['earth_radius'] + orbit['altitude'])
     satellite.sat3d.pos = vecflip(new_pos, solar_sys['flip_o'])
 
     new_psi = get_psi(t, orbit['psi_mode'])
-    new_up = orbit_xyz(new_psi/(2*n.pi), orbit['theta'], orbit['phi'])
+    new_up = rotate_vector((0,0,1), orbit['theta'], orbit['phi'], new_psi)
     satellite.sat3d.up = vecflip(new_up, solar_sys['flip_o'])
 
+    satellite.zrot = (satellite.zrot + get_zrot(dt/orbit['zrot_period'])) % (2*n.pi)
     satellite.sat3d.rotate(angle=get_zrot(
         dt/orbit['zrot_period']), axis=satellite.sat3d.up)
 
-    satellite.sat_v3d.up = vecflip(new_up, flip=solar_sys['flip_v'])
+    satellite.sat_v3d.up = vecflip(new_up, flip=solar_sys['flip_v'], signs=(-1,1,1))
+
+    for i in range(satellite.starting_orientation.shape[0]):
+        satellite.current_orientation[i] = rotate_vector(satellite.starting_orientation[i],orbit['theta'],orbit['phi'], new_psi )
+        satellite.area_ratio[i], satellite.normal_angles[i] = dot_and_angle(solar_sys['sun_vector'], satellite.current_orientation[i])
+        curves[i].plot([total_time, satellite.area_ratio[i]])
+
+    # print(new_up)
+    # print (satellite.area_ratio)
+    # print (satellite.normal_angles)
+    # print (satellite.current_orientation)
 
     # https://ocw.mit.edu/courses/aeronautics-and-astronautics/16-851-satellite-engineering-fall-2003/projects/portfolio_nadir1.pdf
     # equation here to determine true eclipse frac
@@ -75,15 +88,17 @@ def animate(solar_sys, satellite, t, dt):
         solar_sys['sun_v'].color = color.gray(0.6)
 
 
-def simulate(sim_props, satellite, solar_system):
+def simulate(sim_props, satellite, solar_system, area_curves):
     orbit = satellite.orbit
     dt = sim_props['dt']
     sim_time = sim_props['sim_time']
     total_time = sim_props.get('total_time', None)
     n_orbits = sim_props.get('n_orbits', None)
 
+    satellite.sat_v3d.axis = vecflip((0.1,0,0), flip=solar_system['flip_v'], signs=(-1,1,1))
+
     n_pts_per_orbit = n.int(orbit['period'] / dt)
-    if n_pts_per_orbit * dt != orbit['period']:
+    if n_pts_per_orbit * dt !=   orbit['period']:
         dt = orbit['period'] / (1.0*n_pts_per_orbit)
         print("Changing dt to %.2f" % dt)
 
@@ -99,7 +114,7 @@ def simulate(sim_props, satellite, solar_system):
 
     for i in range(n_pts):
         rate(n_pts / sim_props['sim_time'])
-
+        
         t = i * dt
         fraction_orbit = (t % orbit['period'])/orbit['period']
-        animate(solar_system, satellite, fraction_orbit, dt)
+        animate(solar_system, satellite, fraction_orbit, dt, area_curves, t)
