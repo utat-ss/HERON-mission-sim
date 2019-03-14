@@ -54,7 +54,7 @@ def make_view_scene(solar_sys, satellite):
     return sat_view_scene, solar_sys, satellite
 
 
-def animate(solar_sys, satellite, t, dt, curves, total_time):
+def animate(solar_sys, satellite, t, dt, curves, point):
     orbit = satellite.orbit
     new_pos = orbit_xyz(t, orbit['theta'], orbit['phi']) * \
         (solar_sys['earth_radius'] + orbit['altitude'])
@@ -70,25 +70,36 @@ def animate(solar_sys, satellite, t, dt, curves, total_time):
 
     satellite.sat_v3d.up = vecflip(new_up, flip=solar_sys['flip_v'], signs=(-1,1,1))
 
+    # https://ocw.mit.edu/courses/aeronautics-and-astronautics/16-851-satellite-engineering-fall-2003/projects/portfolio_nadir1.pdf
+    eclipse_frac = 0.5
+
+    total_power_gen = 0
     for i in range(satellite.starting_orientation.shape[0]):
         satellite.current_orientation[i] = rotate_vector(satellite.starting_orientation[i],orbit['theta'],orbit['phi'], new_psi )
         satellite.area_ratio[i], satellite.normal_angles[i] = dot_and_angle(solar_sys['sun_vector'], satellite.current_orientation[i])
-        curves[i].plot([total_time, satellite.area_ratio[i]])
-
+        
+        power_gen = -1.0 * solar_sys['solar_flux'] * (1/10000.0) * satellite.cell_areas[i] * 0.3 * satellite.area_ratio[i]
+        if power_gen < 0 or t < eclipse_frac: power_gen = 0
+        total_power_gen += power_gen
+        curves[i].plot([point*dt, power_gen])
+        satellite.gen_powers_per_face[i, point] = power_gen
+            
+    curves[6].plot(point*dt, total_power_gen)
+    
+    
     # print(new_up)
     # print (satellite.area_ratio)
     # print (satellite.normal_angles)
     # print (satellite.current_orientation)
 
-    # https://ocw.mit.edu/courses/aeronautics-and-astronautics/16-851-satellite-engineering-fall-2003/projects/portfolio_nadir1.pdf
     # equation here to determine true eclipse frac
-    if t < 0.5:
+    if t < eclipse_frac:
         solar_sys['sun_v'].color = color.gray(0)
     else:
         solar_sys['sun_v'].color = color.gray(0.6)
 
 
-def simulate(sim_props, satellite, solar_system, area_curves):
+def simulate(sim_props, satellite, solar_system, area_curves, graph):
     orbit = satellite.orbit
     dt = sim_props['dt']
     sim_time = sim_props['sim_time']
@@ -96,7 +107,7 @@ def simulate(sim_props, satellite, solar_system, area_curves):
     n_orbits = sim_props.get('n_orbits', None)
 
     satellite.sat_v3d.axis = vecflip((0.1,0,0), flip=solar_system['flip_v'], signs=(-1,1,1))
-
+    
     n_pts_per_orbit = n.int(orbit['period'] / dt)
     if n_pts_per_orbit * dt !=   orbit['period']:
         dt = orbit['period'] / (1.0*n_pts_per_orbit)
@@ -109,12 +120,19 @@ def simulate(sim_props, satellite, solar_system, area_curves):
         print("Changing total time simulated to %.2f" % total_time)
 
     n_pts = n_pts_per_orbit * n_orbits + 1
-
+    satellite.gen_powers_per_face = n.zeros((7, n_pts),n.float32)
+    satellite.ts = n.zeros(n_pts, n.float32)
     # at this point, n_pts_per_orbit and n_pts are integers
 
     for i in range(n_pts):
-        rate(n_pts / sim_props['sim_time'])
         
         t = i * dt
-        fraction_orbit = (t % orbit['period'])/orbit['period']
-        animate(solar_system, satellite, fraction_orbit, dt, area_curves, t)
+        fraction_orbit = (t % orbit['period'])/orbit['periokeybd']
+        satellite.ts[i] = i
+        animate(solar_system, satellite, fraction_orbit,
+                dt, area_curves, i)
+        rate(n_pts / sim_props['sim_time'])
+
+        if t > 299:
+            graph.xmax = t
+            graph.xmin = t - 300
