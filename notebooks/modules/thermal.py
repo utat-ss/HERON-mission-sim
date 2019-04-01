@@ -6,39 +6,35 @@ boltzman = 5.67*np.power(10.0, -8.0)  # watt m^-2 K^-1
 solar_flux = 1361  # watt m^-2
 
 structure_constants = {
-    'area_t' : 0.0013,  # total surface area of sat
-    'z_face' : 0.0001,  # total z-face area
-    'payload_cap' : 0.00005,  # payload cap area
-    'set_point_pay' : 303,  # temp set point
-    'set_point_batt' : 278.15,  # UNDECIDED
-    'r_batt' : 130 * 10**-3,  # ohm,s #for self heating
-    'R_str_pay' : 16.67,  # K/W
-    'R_str_batt' : 14,  # fake
-    'c_str' : 900,  # estimate (J/kgK)
-    'c_batt' : 850,  # estimate (J/kgK)
-    'c_pay' : 800,  # guess (J/kgK)
-    'e' : 0.58,  # sat emissivity
-    'a' : 0.72,  # sat absorbtivity
+    'area_t': 0.0013,  # total surface area of sat
+    'r_batt': 130 * 10**-3,  # ohm,s #for self heating
+    'R_str_pay': 16.67,  # K/W
+    'R_str_batt': 14,  # fake
+    'c_str': 900,  # estimate (J/K)
+    'c_batt': 850,  # estimate (J/K)
+    'c_pay': 800,  # guess (J/K)
+    'e': 0.58,  # sat emissivity
+    'a': 0.72,  # sat absorbtivity
 
 }
 
 # Primary Structure heat calculations
 def Q_str_batt(T_str, T_batt):
   R = 1/structure_constants['R_str_batt']
-  Q_str_batt = R * (T_str - T_batt)
+  Q_str_batt = - R * (T_str - T_batt)
   return Q_str_batt
 
 def Q_str_pay(T_str, T_pay):
   R = 1/structure_constants['R_str_pay']
-  Q_str_pay = R * (T_str - T_pay)
+  Q_str_pay = - R * (T_str - T_pay)
   return Q_str_pay
 
 def Q_str_sun(area_s, T_str):
   T = T_str ** 4
   #heat radiated from structure surface
-  rad_out = e * boltzman * structure_constants['area_t'] * T
+  rad_out = structure_constants['e'] * boltzman * structure_constants['area_t'] * T
   #heat absorbed from sun
-  abs_in = a * area_s * solar_flux 
+  abs_in = structure_constants['a'] * area_s * solar_flux 
   net_in = abs_in - rad_out
   return net_in
 
@@ -66,7 +62,7 @@ def Q_batt_heaters(batt_heat):
 
 def Q_batt_str(T_str, T_batt):
   R = 1/(structure_constants['R_str_batt'])
-  Q_batt_str = R * (T_batt - T_str)
+  Q_batt_str = - R * (T_batt - T_str)
   return Q_batt_str
 
 def Q_batt_net(T_str, T_batt, batt_heat, I_t):
@@ -82,21 +78,22 @@ def T_batt_dt(Q_batt, T_str, T_batt, dt):
 #Payload calculations
 def Q_pay_heaters(pay_heat):
   if pay_heat == True:
-    return 5 #watts
+    return 2.5 #watts
   else:
-    return 0;
+    return 0.0;
 
 def Q_pay_str(T_str, T_pay):
   R = 1/(structure_constants['R_str_batt'])
-  Q_str_pay = R * (T_pay - T_str)
+  Q_str_pay = - R * (T_pay - T_str)
   return Q_str_pay
 
 def Q_pay_bott(Area_paycap, T_str):
   T = T_str ** 4
+
   #heat radiated from structure surface
-  rad_out = e * boltzman * structure_constants['area_t'] * T
+  rad_out = structure_constants['e'] * boltzman * structure_constants['area_t'] * T
   #heat absorbed from sun
-  abs_in = Area_paycap * a * solar_flux 
+  abs_in = Area_paycap * structure_constants['a'] * solar_flux
   net_in = abs_in - rad_out
   return net_in
 
