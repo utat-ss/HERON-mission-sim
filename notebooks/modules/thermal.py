@@ -19,6 +19,7 @@ structure_constants = {
 }
 
 # Primary Structure heat calculations
+# Q_str_batt means heat IN to the structure
 def Q_str_batt(T_str, T_batt):
   R = 1/structure_constants['R_str_batt']
   Q_str_batt = - R * (T_str - T_batt)
