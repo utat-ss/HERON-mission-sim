@@ -24,7 +24,7 @@ class Satellite():
         self.passover_duration_exp_on = timings['passover_duration_exp_on']
         self.exp_start_time = timings['exp_start_time']
         self.exp_duration = timings['exp_duration']
-        self.heater_setpoints = setpoints
+        self.heater_setpoints = copy.deepcopy(setpoints)
 
         # Initialize Thermal
         self.temperatures = copy.deepcopy(temperatures)
@@ -66,6 +66,7 @@ class Satellite():
         loads = {}
         for load in self.loads:
             loads[load['name']] = (load['state'], load['inst_current'])
+        batt_v = self.get_battery_voltage()
         all_state = {
             'loads': loads,
             'solar_shunts': self.solar_shunts,
@@ -74,15 +75,20 @@ class Satellite():
             'batt_current_net': self.batt_current_net,
             'batt_current_in': self.batt_current_in,
             'batt_current_out': self.batt_current_out,
-            'batt_v': self.get_battery_voltage(),
-            'batt_charge': self.charge
+            'batt_v': batt_v,
+            'batt_charge': self.charge,
+            'power_in' : self.batt_current_in * batt_v,
+            'power_out' : self.batt_current_out * batt_v,
+            'power_net' : - self.batt_current_net * batt_v,
         }
         return all_state
 
     def set_state(self, t):
         # dynamic state variables
+
+        pay_setpoint = self.heater_setpoints['payload_exp'] if self.exp['state'] else self.heater_setpoints['payload_stasis']
         self.batt_heater['state'] = self.temperatures['battery'] < self.heater_setpoints['battery']
-        self.pay_heater['state'] = self.temperatures['payload'] < self.heater_setpoints['payload']
+        self.pay_heater['state'] = self.temperatures['payload'] < pay_setpoint
         # time based state variables
 
         self.beacon['state'] = t % self.beacon_interval < self.beacon_duration
@@ -98,8 +104,7 @@ class Satellite():
         if self.passover['state']:
             self.beacon['state'] = False
 
-        if self.exp['state']:
-            self.heater_setpoints['payload'] = 273.15 + 38.0
+
 
     def update_thermal(self, sun_area, zcap_sun_area, battery_discharge, dt=1.0):
 
@@ -143,16 +148,16 @@ class Satellite():
         return batt_vmin + (self.charge/(self.battery_capacity_mAh)) * (batt_vmax - batt_vmin)
 
     def charge_from_solar_panel(self, effective_area, dt=1.0):
-        n_cells_per_side = 6.0
+        n_cells_per_side = 3.0 # 3 because we have 3 sets of 2 in series
         # 500 is the assumed mA provided by panels in sun
         pv_cell_current_mA = 500.0 * n_cells_per_side
         new_charge = self.charge + effective_area * \
             pv_cell_current_mA * (dt/3600)
-        old_charge = self.charge
+
+        self.batt_current_in = ((min(new_charge, self.battery_capacity_mAh)) - self.charge) / (dt * 1.0 / 3600.0)
         self.charge = min(new_charge, self.battery_capacity_mAh)
         if new_charge > self.battery_capacity_mAh:
             self.solar_shunts = True
-        self.batt_current_in = (self.charge - old_charge) / (dt * 1.0)
         self.batt_current_net = self.batt_current_out - self.batt_current_in
 
     def discharge(self, voltage_out, current_out, dt=1.0):
