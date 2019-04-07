@@ -1,0 +1,132 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>modules.fileio &#8212; mission-sim 1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <h1>Source code for modules.fileio</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">n</span>
+<span class="kn">import</span> <span class="nn">csv</span>
+
+<div class="viewcode-block" id="read_areas_from_file"><a class="viewcode-back" href="../../backend.html#modules.fileio.read_areas_from_file">[docs]</a><span class="k">def</span> <span class="nf">read_areas_from_file</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dt</span><span class="p">,</span> <span class="n">t_orbit</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;plusX&#39;</span><span class="p">,</span> <span class="s1">&#39;plusY&#39;</span><span class="p">,</span> <span class="s1">&#39;negX&#39;</span><span class="p">,</span> <span class="s1">&#39;negY&#39;</span><span class="p">,</span> <span class="s1">&#39;plusZ&#39;</span><span class="p">,</span> <span class="s1">&#39;negZ&#39;</span><span class="p">]):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Reads in the projected sun-facing areas of each face of the satellite over time from a csv file.</span>
+<span class="sd">    The csv file can be generated through STK. It has N*(M+1) + 2 rows, where N is the number of time points and M is the number of faces.</span>
+<span class="sd">    The first row is the title row, and its index-1 element is assumed to be &#39;Time&#39;. The final row is a row of four null characters.</span>
+<span class="sd">    There are M sections, each section starts with a row containing the header, followed by N rows containint (time, area).</span>
+<span class="sd">    The units of area is m^2, and the time is in a datetime format.</span>
+
+<span class="sd">    Arguments:</span>
+<span class="sd">        path {string} -- Absolute path to source csv file</span>
+<span class="sd">        dt {float} -- Time step of the simulation seconds</span>
+<span class="sd">    </span>
+<span class="sd">    Keyword Arguments:</span>
+<span class="sd">        t_orbit {integer} -- The length of the orbit in seconds. If this is greater than the number of rows, the output is padded with 0-rows until this length is met (default: {None})</span>
+<span class="sd">        headers {list} -- The names of the headers for each face (default: {[&#39;plusX&#39;, &#39;plusY&#39;, &#39;negX&#39;, &#39;negY&#39;, &#39;plusZ&#39;, &#39;negZ&#39;]})</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        [np.array] -- Structured numpy array with a field for each header, and N elements under each header.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+
+
+    <span class="c1"># if t_orbit &gt; len(file)*dt, it will be padded with 0s</span>
+    <span class="n">areas_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="k">as</span> <span class="n">area_csv_file</span><span class="p">:</span>
+        <span class="n">reader</span> <span class="o">=</span> <span class="n">csv</span><span class="o">.</span><span class="n">reader</span><span class="p">(</span><span class="n">area_csv_file</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">reader</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">in</span> <span class="n">headers</span><span class="p">:</span>
+                <span class="n">areas_dict</span><span class="p">[</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;times&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;area&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;intensity&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+                <span class="n">current_header</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">elif</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="s1">&#39;Time&#39;</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="k">elif</span> <span class="n">row</span> <span class="o">==</span> <span class="p">[</span><span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">]:</span>
+                <span class="k">break</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">areas_dict</span><span class="p">[</span><span class="n">current_header</span><span class="p">][</span><span class="s1">&#39;times&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+    <span class="c1">#             print(&#39;value:&#39;,  row[3])</span>
+                <span class="n">areas_dict</span><span class="p">[</span><span class="n">current_header</span><span class="p">][</span><span class="s1">&#39;area&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">]))</span>
+                <span class="n">areas_dict</span><span class="p">[</span><span class="n">current_header</span><span class="p">][</span><span class="s1">&#39;intensity&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">n</span><span class="o">.</span><span class="n">float32</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]))</span>
+
+    <span class="n">areas</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">n</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">t_orbit</span><span class="o">/</span><span class="n">dt</span><span class="p">)),</span>
+                     <span class="p">[(</span><span class="n">h</span><span class="p">,</span> <span class="n">n</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">headers</span><span class="p">])</span>
+    <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">headers</span><span class="p">:</span>
+        <span class="n">areas</span><span class="p">[</span><span class="n">h</span><span class="p">][:</span><span class="nb">len</span><span class="p">(</span><span class="n">areas_dict</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="s1">&#39;area&#39;</span><span class="p">])]</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+            <span class="n">areas_dict</span><span class="p">[</span><span class="n">h</span><span class="p">][</span><span class="s1">&#39;area&#39;</span><span class="p">])</span><span class="o">*</span><span class="mf">0.01</span>
+    <span class="n">times</span> <span class="o">=</span> <span class="n">n</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">i</span><span class="o">*</span><span class="n">dt</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">t_orbit</span><span class="o">/</span><span class="n">dt</span><span class="p">))],</span> <span class="n">n</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">areas</span></div>
+</pre></div>
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  <li><a href="../index.html">Module code</a><ul>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, UTAT-SpaceSys.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.8.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>

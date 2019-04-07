@@ -10,7 +10,7 @@ class Satellite():
         """
         Create a new satellite object with the given properties and initial state. 
         The format of the dictionaries is important, so please refer to the main notebook to see what they should contain
-        
+
         Arguments:
             timings {dict} -- frequency, length, start/end times of different loads
             eps {dict} -- characteristics of the power system
@@ -63,18 +63,19 @@ class Satellite():
         self.batt_current_out = 0
         self.batt_current_net = self.batt_current_out - self.batt_current_in
 
-        # the trackers dictionary contains all of the data needed 
-        self.trackers = {'time' : []}
-        for key in self.get_state().keys(): self.trackers[key] = []
+        # the trackers dictionary contains all of the data needed
+        self.trackers = {'time': []}
+        for key in self.get_state().keys():
+            self.trackers[key] = []
 
-    def update_state_tracker(self,t):
+    def update_state_tracker(self, t):
         '''
         Updates the internal state tracker of the Satellite object with the current state.
         Can be called at each iteration to record the current status. 
-        
+
         Arguments:
             t {float} -- Current time of the simulation to timestamp the state
-        
+
         Returns:
             dict -- dictionary containing all state variables
         '''
@@ -88,7 +89,7 @@ class Satellite():
     def get_state(self):
         '''
         Read the state variable and compile them in a dictionary for easy access
-        
+
         Returns:
             dict -- the current state of the satellite, including all of the loads, temperatures, powers, etc.
         '''
@@ -107,16 +108,16 @@ class Satellite():
             'batt_current_out': self.batt_current_out,
             'batt_v': batt_v,
             'batt_charge': self.charge,
-            'power_in' : self.batt_current_in * batt_v,
-            'power_out' : self.batt_current_out * batt_v,
-            'power_net' : - self.batt_current_net * batt_v,
+            'power_in': self.batt_current_in * batt_v,
+            'power_out': self.batt_current_out * batt_v,
+            'power_net': - self.batt_current_net * batt_v,
         }
         return all_state
 
     def set_state(self, t):
         '''
         Determine the on/off status of loads given the current time, and write the status to the state variables of the Satellite object
-        
+
         Arguments:
             t {float} -- current time (in seconds) of the simulation
         '''
@@ -127,7 +128,6 @@ class Satellite():
         # Determine whether the heaters should be on given the current temperatures
         self.batt_heater['state'] = self.temperatures['battery'] < self.heater_setpoints['battery']
         self.pay_heater['state'] = self.temperatures['payload'] < pay_setpoint
-
 
         # Time-based variables
         self.beacon['state'] = t % self.beacon_interval < self.beacon_duration
@@ -147,18 +147,16 @@ class Satellite():
         if self.passover['state']:
             self.beacon['state'] = False
 
-
-
     def update_thermal(self, sun_area, zcap_sun_area, battery_discharge, dt=1.0):
         '''
         Given the current state of the satellite, update the Qdots and the temperatures.
         Uses numerical methods to time-step through the thermal equations.
-        
+
         Arguments:
             sun_area {float} -- the total projected surface area (m^2) of the satellite exposed to the sun
             zcap_sun_area {float} -- the total projected surface area (m^2) of the payload bottom cap exposed to the sun
             battery_discharge {float} -- net current (mA) OUT of the battery to calculate self-heating
-        
+
         Keyword Arguments:
             dt {float} -- Time step of the simulation (secods) (default: {1.0})
         '''
@@ -170,24 +168,24 @@ class Satellite():
 
         # Update the Q-dots of the satellite
         self.qdots['structure'] = thermal.Q_str_net(
-            sun_area, T_str, T_pay, T_bat,self.structure_constants)
+            sun_area, T_str, T_pay, T_bat, self.structure_constants)
         self.qdots['battery'] = thermal.Q_batt_net(T_str, T_bat, self.batt_heater['state'],
-                                                   battery_discharge * (dt/3600.0),self.structure_constants)
+                                                   battery_discharge * (dt/3600.0), self.structure_constants)
         self.qdots['payload'] = thermal.Q_pay_net(
-            T_str, T_pay, self.pay_heater['state'], zcap_sun_area,self.structure_constants)
+            T_str, T_pay, self.pay_heater['state'], zcap_sun_area, self.structure_constants)
 
         # Update the temperatures
         self.temperatures['structure'] = thermal.T_str_dt(self.qdots['structure'], T_str,
-                                                          T_pay, T_bat, dt,self.structure_constants)
+                                                          T_pay, T_bat, dt, self.structure_constants)
         self.temperatures['battery'] = thermal.T_batt_dt(self.qdots['battery'], T_str,
-                                                         T_bat, dt,self.structure_constants)
+                                                         T_bat, dt, self.structure_constants)
         self.temperatures['payload'] = thermal.T_pay_dt(self.qdots['payload'], T_str,
-                                                        T_pay, dt,self.structure_constants)
+                                                        T_pay, dt, self.structure_constants)
 
     def draw_powers(self, dt=1.0):
         """
         Loops through all of the loads and drains the battery according to the current state of each load.
-        
+
         Keyword Arguments:
             dt {float} -- Time step (seconds) (default: {1.0})
         """
@@ -206,11 +204,10 @@ class Satellite():
         '''
         Calculate the battery voltage depending on the current charge of the battery.
         This model can be expanded to include voltage inflation or sagging, as well as the non-linear chrage/voltage curve, but for now it is a linear model.
-        
+
         Returns:
             float -- battery voltage (V)
         '''
-
 
         # replace this with actual I-V curve of the batteries
         batt_vmax = 4
@@ -221,15 +218,14 @@ class Satellite():
         """
         Charge the batteries from the solar panels.
         Charges only up to the maximum capacity of the batteries, and turns on shunts if that is exceeded
-        
+
         Arguments:
             effective_area {float} -- projected solar panel area exposed to the sun, expressed as a fraction of 1 side. 1.0 means one side is directly in sun, and maximum is 1.41 to account for sun at the corner.        
         Keyword Arguments:
             dt {float} -- Simulation time step (seconds) (default: {1.0})
         """
 
-
-        n_cells_per_side = 3.0 # 3 because we have 3 sets of 2 in series
+        n_cells_per_side = 3.0  # 3 because we have 3 sets of 2 in series
         # 500 is the assumed mA provided by panels in sun
         pv_cell_current_mA = 500.0 * n_cells_per_side
         # assume that charge is linear with area
@@ -247,14 +243,14 @@ class Satellite():
         '''
         Discharge the battery with the given load parameters.
         Accounts for the boost/downstepping of current based on inputs, and the converter losses.
-        
+
         Arguments:
             voltage_out {float} -- The voltage of the load (V)
             current_out {float} -- The current drawn by load (mA)
-        
+
         Keyword Arguments:
             dt {float} -- Time step of simulation (seconds) (default: {1.0})
-        
+
         Returns:
             float -- current out (mA)
         '''
@@ -270,4 +266,3 @@ class Satellite():
             self.charge = newcharge
 
         return current_out
-
