@@ -1,7 +1,13 @@
 import copy
 import csv
 import numpy as n
-from modules import thermal
+
+# uncomment if in notebook
+# from modules import thermal
+
+# uncomment if not in notebook
+import thermal
+
 # dt is always in seconds
 
 
