@@ -1,9 +1,11 @@
+import copy
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
 from dash.dependencies import Input, Output
 import sys
+import json
 sys.path.insert(0, 'notebooks/modules')
 import defaults, satellite, fileio
 
@@ -32,6 +34,9 @@ def plot_loads(satellite):
     pass
 
 t_a, a, p_a = load_files()
+timings = copy.deepcopy(defaults.timings)
+
+
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -45,14 +50,35 @@ app.layout = html.Div([
         max=50,
         value=3,
         marks={i*5:i*5 for i in range(11)}
-    )
+    ),
+    dcc.Dropdown(id='dropdown',
+            options = [{'label':k, 'value':k} for k in defaults.timings.keys()],
+            value = list(defaults.timings.keys())[0]),
+    dcc.Textarea(
+        placeholder='Select a property.',
+        value='Select a property.',
+        style={'width': '100%'},
+        id = 'property-editor'
+    ),
+    html.Div(id='saved_sim_params', 
+            style={'display' : 'none'},
+            children=json.dumps(timings)),
+    html.Button('Reprocess', id='reproc-btn')
 ])
 
+@app.callback(
+    Output('property-editor', 'value'),
+    [Input('dropdown', 'value')]
+)
+def choose_property(value):
+    return defaults.timings[value]
+
+@app.ca
 
 @app.callback(
     Output('graph-with-slider', 'figure'),
-    [Input('orbits-slider', 'value')])
-def update_figure(n_orbits):
+    [Input('reproc-btn', 'n_clicks')])
+def update_figure(n_clicks):
 
     print("Running sim...")
     heron = simulate(3, a, t_a, p_a)
