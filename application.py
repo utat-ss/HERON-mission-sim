@@ -34,10 +34,10 @@ def plot_loads(satellite):
 t_a, a, p_a = load_files()
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+application = dash.Dash(__name__, external_stylesheets=external_stylesheets)
 
 
-app.layout = html.Div([
+application.layout = html.Div([
     dcc.Graph(id='graph-with-slider'),
     dcc.Slider(
         id='orbits-slider',
@@ -49,13 +49,13 @@ app.layout = html.Div([
 ])
 
 
-@app.callback(
+@application.callback(
     Output('graph-with-slider', 'figure'),
     [Input('orbits-slider', 'value')])
 def update_figure(n_orbits):
 
     print("Running sim...")
-    heron = simulate(3, a, t_a, p_a)
+    heron = simulate(n_orbits, a, t_a, p_a)
     print("Done Sim")
     traces = []
 
@@ -84,4 +84,4 @@ def update_figure(n_orbits):
 
 if __name__ == '__main__':
 
-    app.run_server(debug=True)
+    application.run_server(debug=True)
