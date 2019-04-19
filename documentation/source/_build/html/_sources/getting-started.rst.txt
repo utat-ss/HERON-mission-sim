@@ -1,7 +1,0 @@
-Getting Started 
-===============
-
-Welcome to the mission-sim documentation.
-
-Installation
-------------
