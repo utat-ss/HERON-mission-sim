@@ -9,8 +9,22 @@ from dash.dependencies import Input, Output
 import sys
 sys.path.insert(0, 'notebooks/modules')
 import defaults, satellite, fileio
+import numpy as n
 
+'''
+WRAPPERs & HELPER FUNCTIONS
+A few functions to wrao the file_io and simulation calls.
+'''
 def load_files():
+    '''
+    
+    Use the default parameters to read the csv file and return formatted arrays of areas
+    Returns:
+        ndarray -- total_areas, array of the total area of the satellite facing the sun
+        ndarray -- areas, structured ndarray of the area of each face in sun
+        ndarray -- panel_areas, array of total area of panels facing the sun
+    '''
+
     areas = fileio.read_areas_from_file(defaults.path, defaults.dt, defaults.t_orbit)
     total_areas = areas['plusX'] - areas['plusX']
     panel_areas = total_areas.copy()
@@ -18,9 +32,28 @@ def load_files():
         total_areas += areas[h]
         if h in defaults.panels: panel_areas += areas[h]
     return total_areas, areas, panel_areas
-
-
 def simulate(n_orbits, areas, total_areas, panel_areas, timings=defaults.timings, eps=defaults.eps, temperatures=defaults.temperatures, setpoints=defaults.setpoints, structure_constants=defaults.structure_constants):
+    '''
+    Worker function to run the simulation, uses default params
+    
+    Arguments:
+        n_orbits {int} -- number of orbits to simulate
+        areas {ndarray} -- see elsewhere for description
+        total_areas {ndarray} -- see elsewhere for description
+        panel_areas {ndarray} -- see elsewhere for description
+    
+    Keyword Arguments:
+        timings {dict} -- sim params (default: {defaults.timings})
+        eps {dict} -- sim params (default: {defaults.eps})
+        temperatures {dict} -- sim params (default: {defaults.temperatures})
+        setpoints {dict} -- sim params (default: {defaults.setpoints})
+        structure_constants {dict} -- sim params (default: {defaults.structure_constants})
+    
+    Returns:
+        Satellite -- Satellite object containing trackers
+    '''
+
+    
     n_pts_per_orbit = len(areas)
     n_points = n_orbits * n_pts_per_orbit
     t_sim = n_points * defaults.dt
@@ -33,6 +66,10 @@ def simulate(n_orbits, areas, total_areas, panel_areas, timings=defaults.timings
         heron.update_state_tracker(i*defaults.dt)
     return heron
 
+
+'''
+Load default values & Set the description text for each parameter
+'''
 
 t_a, a, p_a = load_files()
 eps = defaults.eps.copy()
@@ -71,7 +108,9 @@ structure_constants_names = [
     ('R_str_batt', "R between Str and Battery", 'R_str_batt'),
 ]
 
-
+'''
+HTML Magic
+'''
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 server = flask.Flask(__name__)
 application = dash.Dash(__name__, server=server, external_stylesheets=external_stylesheets)
@@ -289,6 +328,10 @@ application.layout = html.Div(
     className='ten columns offset-by-one'
 )
 
+
+'''
+All the callbacks
+'''
 
 @application.callback(Output('text-timings-n_orbits', 'children'),
                       [Input('input-timings-n_orbits', 'value')])
