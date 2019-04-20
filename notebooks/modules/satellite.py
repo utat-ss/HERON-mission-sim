@@ -102,7 +102,7 @@ class Satellite():
 
         loads = {}
         for load in self.loads:
-            loads[load['name']] = (load['state'], load['inst_current'])
+            loads[load['name']] = (int(load['state']), load['inst_current'])
         batt_v = self.get_battery_voltage()
         all_state = {
             'loads': loads,

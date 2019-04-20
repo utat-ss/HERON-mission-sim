@@ -274,12 +274,16 @@ application.layout = html.Div(
             ],
             className='row'
         ),
+        dcc.Loading(id="loading-satellite",
+                    children=[html.Div(id='saved-satellite-object', style={'display': 'none'}),
+                            ], type="default"),
         html.Div([
             dcc.Graph(id='graph-batt_v'),
             # dcc.Graph(id='graph-loads'),
             dcc.Graph(id='graph-temps'),
-        ]),
-        html.Div(id='saved-satellite-object', style={'display': 'none'})
+        ]
+        ),
+        
     ],
     style={'font-family' : 'Arial'},
     className='ten columns offset-by-one'
@@ -341,44 +345,9 @@ for i in range(len(structure_constants_names)):
             return structure_constants_names[i][1] + ': %.2f' % value
 
 
-# @application.callback(
-#     Output('graph-batt_v', 'figure'),
-#     [Input('reprocess-button', 'n_clicks')])
-# def update_load_figure(n_clicks):
-
-#     print("Running sim...")
-#     heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
-#      temperatures=temperatures, eps=eps, timings=timings)
-#     print("Done Sim")
-#     traces = []
-
-#     traces.append(go.Scatter(
-#         x = heron.trackers['time'],
-#         y = heron.trackers['batt_v'],
-#         text = "Battery Voltage",
-#         mode = 'lines',
-#         opacity = 0.8,
-#         name = 'batt_v'
-#     ))
-    
-#     return {
-#         'data': traces,
-#         'layout': go.Layout(
-#             xaxis={ 'title': 'Time (s)'},
-#             yaxis={'title': 'Battery Voltage'},
-#             margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
-#             legend={'x': 0, 'y': 1},
-#             hovermode='closest'
-#         )
-#     }
-heron = simulate(timings['n_orbits'], a, t_a, p_a, structure_constants=structure_constants,
-                 temperatures=temperatures, eps=eps, timings=timings)
-updated = True
-
-
 @application.callback(
     Output('saved-satellite-object', 'children'),
-    [Input('reprocess-button', 'value')])
+    [Input('reprocess-button', 'n_clicks')])
 def rerun_sim(n_clicks):
     n_orbits = timings['n_orbits']
     print("Running sim with %d orbits..." % n_orbits)
