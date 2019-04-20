@@ -1,4 +1,4 @@
-path = '/home/ali/UTAT/mission-sim/sources/heron_area.csv'
+path = 'sources/heron_area.csv'
 t_orbit = 92 * 60
 dt = 1
 headers = ['plusX', 'plusY', 'negX', 'negY', 'plusZ', 'negZ']

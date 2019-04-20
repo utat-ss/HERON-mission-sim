@@ -25,7 +25,9 @@ def read_areas_from_file(path, dt, t_orbit=None, headers=['plusX', 'plusY', 'neg
 
     # if t_orbit > len(file)*dt, it will be padded with 0s
     areas_dict = {}
-    with open(path) as area_csv_file:
+    
+    
+    with open(path, encoding='utf-8') as area_csv_file:
         reader = csv.reader(area_csv_file)
         for row in reader:
             if row[0] in headers:
