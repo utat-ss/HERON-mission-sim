@@ -39,7 +39,7 @@ temperatures = defaults.temperatures.copy()
 setpoints = defaults.setpoints.copy()
 structure_constants = defaults.structure_constants.copy()
 timings = defaults.timings.copy()
-n_orbits = 3
+timings['n_orbits'] = 3
 
 timings_names = [
     ('exp_start_time', "Start time of Experiment (hours)"),
@@ -250,7 +250,7 @@ application.layout = html.Div(
                         dcc.Input(
                             id='input-timings-n_orbits',
                             type='text',
-                            value=str(n_orbits)
+                            value=str(timings['n_orbits'])
                         ),
                         html.Div(id='text-timings-exp_start_time'),
                         dcc.Input(
@@ -274,7 +274,7 @@ application.layout = html.Div(
         ),
         html.Div([
             dcc.Graph(id='graph-batt_v'),
-            dcc.Graph(id='graph-loads'),
+            # dcc.Graph(id='graph-loads'),
             dcc.Graph(id='graph-temps'),
         ])
     ],
@@ -286,8 +286,8 @@ application.layout = html.Div(
 @application.callback(Output('text-timings-n_orbits', 'children'),
                       [Input('input-timings-n_orbits', 'value')])
 def display_value(value):
-        n_orbits = int(value)
-        return "%d orbits, corresponds to %.2f hours" % (n_orbits, defaults.t_orbit * n_orbits / 3600)
+        timings['n_orbits'] = int(value)
+        return "%d orbits, corresponds to %.2f hours" % (timings['n_orbits'], defaults.t_orbit * timings['n_orbits'] / 3600)
 
 for i in range(len(timings_names)):
     @application.callback(Output('text-timings-'+timings_names[i][0], 'children'),
@@ -338,51 +338,51 @@ for i in range(len(structure_constants_names)):
             return structure_constants_names[i][1] + ': %.2f' % value
 
 
-@application.callback(
-    Output('graph-batt_v', 'figure'),
-    [Input('reprocess-button', 'n_clicks')])
-def update_load_figure(n_clicks):
+# @application.callback(
+#     Output('graph-batt_v', 'figure'),
+#     [Input('reprocess-button', 'n_clicks')])
+# def update_load_figure(n_clicks):
 
-    print("Running sim...")
-    heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
-     temperatures=temperatures, eps=eps, timings=timings)
-    print("Done Sim")
-    traces = []
+#     print("Running sim...")
+#     heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
+#      temperatures=temperatures, eps=eps, timings=timings)
+#     print("Done Sim")
+#     traces = []
 
-    traces.append(go.Scatter(
-        x = heron.trackers['time'],
-        y = heron.trackers['batt_v'],
-        text = "Battery Voltage",
-        mode = 'lines',
-        opacity = 0.8,
-        name = 'batt_v'
-    ))
+#     traces.append(go.Scatter(
+#         x = heron.trackers['time'],
+#         y = heron.trackers['batt_v'],
+#         text = "Battery Voltage",
+#         mode = 'lines',
+#         opacity = 0.8,
+#         name = 'batt_v'
+#     ))
     
-    return {
-        'data': traces,
-        'layout': go.Layout(
-            xaxis={ 'title': 'Time (s)'},
-            yaxis={'title': 'Battery Voltage'},
-            margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
-            legend={'x': 0, 'y': 1},
-            hovermode='closest'
-        )
-    }
+#     return {
+#         'data': traces,
+#         'layout': go.Layout(
+#             xaxis={ 'title': 'Time (s)'},
+#             yaxis={'title': 'Battery Voltage'},
+#             margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
+#             legend={'x': 0, 'y': 1},
+#             hovermode='closest'
+#         )
+#     }
 
 
 @application.callback(
     Output('graph-batt_v', 'figure'),
     [Input('reprocess-button', 'n_clicks')])
 def update_batt_figure(n_clicks):
-
-    print("Running sim...")
+    n_orbits = timings['n_orbits']
+    print("Running sim with %d orbits..." % n_orbits) 
     heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
                      temperatures=temperatures, eps=eps, timings=timings)
     print("Done Sim")
     traces = []
 
     traces.append(go.Scatter(
-        x=heron.trackers['time'],
+        x=[t / 3600 for t in heron.trackers['time']],
         y=heron.trackers['batt_v'],
         text="Battery Voltage",
         mode='lines',
@@ -393,7 +393,7 @@ def update_batt_figure(n_clicks):
     return {
         'data': traces,
         'layout': go.Layout(
-            xaxis={'title': 'Time (s)'},
+            xaxis={'title': 'Time (h)'},
             yaxis={'title': 'Battery Voltage'},
             margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
             legend={'x': 0, 'y': 1},
@@ -408,6 +408,7 @@ def update_batt_figure(n_clicks):
     [Input('reprocess-button', 'n_clicks')])
 def update_temp_figure(n_clicks):
 
+    n_orbits = timings['n_orbits']
     print("Running sim...")
     heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
                      temperatures=temperatures, eps=eps, timings=timings)
@@ -415,7 +416,7 @@ def update_temp_figure(n_clicks):
     traces = []
 
     traces.append(go.Scatter(
-        x=heron.trackers['time'],
+        x=[t / 3600 for t in heron.trackers['time']],
         y=[temp['structure'] for temp in heron.trackers['temperatures']],
         text="Structure Temperature (K)",
         mode='lines',
@@ -423,7 +424,7 @@ def update_temp_figure(n_clicks):
         name='temp_str'
     ))    
     traces.append(go.Scatter(
-        x=heron.trackers['time'],
+        x=[t / 3600 for t in heron.trackers['time']],
         y=[temp['payload'] for temp in heron.trackers['temperatures']],
         text="Payload Temperature (K)",
         mode='lines',
@@ -431,7 +432,7 @@ def update_temp_figure(n_clicks):
         name='temp_pay'
     ))    
     traces.append(go.Scatter(
-        x=heron.trackers['time'],
+        x= [t / 3600 for t in heron.trackers['time']],
         y=[temp['battery'] for temp in heron.trackers['temperatures']],
         text="Battery Temperature (K)",
         mode='lines',
@@ -442,8 +443,8 @@ def update_temp_figure(n_clicks):
     return {
         'data': traces,
         'layout': go.Layout(
-            xaxis={'title': 'Time (s)'},
-            yaxis={'title': 'Battery Voltage'},
+            xaxis={'title': 'Time (h)'},
+            yaxis={'title': 'Temperature'},
             margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
             legend={'x': 0, 'y': 1},
             hovermode='closest'
