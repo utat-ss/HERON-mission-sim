@@ -4,6 +4,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import plotly.graph_objs as go
+import json
 from dash.dependencies import Input, Output
 import sys
 sys.path.insert(0, 'notebooks/modules')
@@ -277,7 +278,8 @@ application.layout = html.Div(
             dcc.Graph(id='graph-batt_v'),
             # dcc.Graph(id='graph-loads'),
             dcc.Graph(id='graph-temps'),
-        ])
+        ]),
+        html.Div(id='saved-satellite-object', style={'display': 'none'})
     ],
     style={'font-family' : 'Arial'},
     className='ten columns offset-by-one'
@@ -369,22 +371,33 @@ for i in range(len(structure_constants_names)):
 #             hovermode='closest'
 #         )
 #     }
+heron = simulate(timings['n_orbits'], a, t_a, p_a, structure_constants=structure_constants,
+                 temperatures=temperatures, eps=eps, timings=timings)
+updated = True
+
+
+@application.callback(
+    Output('saved-satellite-object', 'children'),
+    [Input('reprocess-button', 'value')])
+def rerun_sim(n_clicks):
+    n_orbits = timings['n_orbits']
+    print("Running sim with %d orbits..." % n_orbits)
+    heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
+                     temperatures=temperatures, eps=eps, timings=timings)
+    print("Done Sim")
+    return json.dumps(heron.trackers)
 
 
 @application.callback(
     Output('graph-batt_v', 'figure'),
-    [Input('reprocess-button', 'n_clicks')])
-def update_batt_figure(n_clicks):
-    n_orbits = timings['n_orbits']
-    print("Running sim with %d orbits..." % n_orbits) 
-    heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
-                     temperatures=temperatures, eps=eps, timings=timings)
-    print("Done Sim")
+    [Input('saved-satellite-object', 'children')])
+def update_batt_figure(input_json):
+    trackers = json.loads(input_json)
     traces = []
 
     traces.append(go.Scatter(
-        x=[t / 3600 for t in heron.trackers['time']],
-        y=heron.trackers['batt_v'],
+        x=[t / 3600 for t in trackers['time']],
+        y=trackers['batt_v'],
         text="Battery Voltage",
         mode='lines',
         opacity=0.8,
@@ -406,35 +419,31 @@ def update_batt_figure(n_clicks):
 
 @application.callback(
     Output('graph-temps', 'figure'),
-    [Input('reprocess-button', 'n_clicks')])
-def update_temp_figure(n_clicks):
+    [Input('saved-satellite-object', 'children')])
+def update_temp_figure(input_json):
+    trackers = json.loads(input_json)
 
-    n_orbits = timings['n_orbits']
-    print("Running sim...")
-    heron = simulate(n_orbits, a, t_a, p_a, structure_constants=structure_constants,
-                     temperatures=temperatures, eps=eps, timings=timings)
-    print("Done Sim")
     traces = []
 
     traces.append(go.Scatter(
-        x=[t / 3600 for t in heron.trackers['time']],
-        y=[temp['structure'] for temp in heron.trackers['temperatures']],
+        x=[t / 3600 for t in trackers['time']],
+        y=[temp['structure'] for temp in trackers['temperatures']],
         text="Structure Temperature (K)",
         mode='lines',
         opacity=0.8,
         name='temp_str'
     ))    
     traces.append(go.Scatter(
-        x=[t / 3600 for t in heron.trackers['time']],
-        y=[temp['payload'] for temp in heron.trackers['temperatures']],
+        x=[t / 3600 for t in trackers['time']],
+        y=[temp['payload'] for temp in trackers['temperatures']],
         text="Payload Temperature (K)",
         mode='lines',
         opacity=0.8,
         name='temp_pay'
     ))    
     traces.append(go.Scatter(
-        x= [t / 3600 for t in heron.trackers['time']],
-        y=[temp['battery'] for temp in heron.trackers['temperatures']],
+        x= [t / 3600 for t in trackers['time']],
+        y=[temp['battery'] for temp in trackers['temperatures']],
         text="Battery Temperature (K)",
         mode='lines',
         opacity=0.8,
