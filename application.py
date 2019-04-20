@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+import flask
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -72,7 +72,8 @@ structure_constants_names = [
 
 
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
-application = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+server = flask.Flask(__name__)
+application = dash.Dash(__name__, server=server, external_stylesheets=external_stylesheets)
 
 application.layout = html.Div(
     [
