@@ -10,7 +10,7 @@ import sys
 sys.path.insert(0, 'notebooks/modules')
 import defaults, satellite, fileio
 import numpy as n
-
+from scipy.signal import decimate
 '''
 WRAPPERs & HELPER FUNCTIONS
 A few functions to wrao the file_io and simulation calls.
@@ -78,6 +78,7 @@ setpoints = defaults.setpoints.copy()
 structure_constants = defaults.structure_constants.copy()
 timings = defaults.timings.copy()
 timings['n_orbits'] = 3
+timings['plot_resolution'] = 20
 
 timings_names = [
     ('exp_start_time', "Start time of Experiment (hours)"),
@@ -304,7 +305,13 @@ application.layout = html.Div(
                             id='input-timings-exp_duration',
                             type='text',
                             value=str(int(defaults.timings['exp_duration']/3600))
-                        ),   
+                        ),
+                        html.Div(id='text-timings-plot_resolution'),
+                        dcc.Input(
+                            id='input-timings-plot_resolution',
+                            type='text',
+                            value=str(20),
+                        ),
                         html.Button('Reprocess', id='reprocess-button'),
                         
                     ],
@@ -317,9 +324,11 @@ application.layout = html.Div(
                     children=[html.Div(id='saved-satellite-object', style={'display': 'none'}),
                             ], type="default"),
         html.Div([
-            dcc.Graph(id='graph-batt_v'),
-            # dcc.Graph(id='graph-loads'),
+            dcc.Graph(id='graph-loads'),
             dcc.Graph(id='graph-temps'),
+            dcc.Graph(id='graph-batt_v'),
+            dcc.Graph(id='graph-power_balance'),
+            dcc.Graph(id='graph-inst_current_load'),
         ]
         ),
         
@@ -333,11 +342,18 @@ application.layout = html.Div(
 All the callbacks
 '''
 
+
 @application.callback(Output('text-timings-n_orbits', 'children'),
                       [Input('input-timings-n_orbits', 'value')])
 def display_value(value):
         timings['n_orbits'] = int(value)
         return "%d orbits, corresponds to %.2f hours" % (timings['n_orbits'], defaults.t_orbit * timings['n_orbits'] / 3600)
+
+@application.callback(Output('text-timings-plot_resolution', 'children'),
+                      [Input('input-timings-plot_resolution', 'value')])
+def display_value(value):
+        timings['plot_resolution'] = int(value)
+        return "Plot resolution is %d seconds" % timings['plot_resolution']
 
 for i in range(len(timings_names)):
     @application.callback(Output('text-timings-'+timings_names[i][0], 'children'),
@@ -408,8 +424,8 @@ def update_batt_figure(input_json):
     traces = []
 
     traces.append(go.Scatter(
-        x=[t / 3600 for t in trackers['time']],
-        y=trackers['batt_v'],
+        x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=trackers['batt_v'][::timings['plot_resolution']],
         text="Battery Voltage",
         mode='lines',
         opacity=0.8,
@@ -438,24 +454,24 @@ def update_temp_figure(input_json):
     traces = []
 
     traces.append(go.Scatter(
-        x=[t / 3600 for t in trackers['time']],
-        y=[temp['structure'] for temp in trackers['temperatures']],
+        x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=[temp['structure'] for temp in trackers['temperatures']][::timings['plot_resolution']],
         text="Structure Temperature (K)",
         mode='lines',
         opacity=0.8,
         name='temp_str'
     ))    
     traces.append(go.Scatter(
-        x=[t / 3600 for t in trackers['time']],
-        y=[temp['payload'] for temp in trackers['temperatures']],
+        x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=[temp['payload'] for temp in trackers['temperatures']][::timings['plot_resolution']],
         text="Payload Temperature (K)",
         mode='lines',
         opacity=0.8,
         name='temp_pay'
     ))    
     traces.append(go.Scatter(
-        x= [t / 3600 for t in trackers['time']],
-        y=[temp['battery'] for temp in trackers['temperatures']],
+        x= [t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=[temp['battery'] for temp in trackers['temperatures']][::timings['plot_resolution']],
         text="Battery Temperature (K)",
         mode='lines',
         opacity=0.8,
@@ -472,6 +488,122 @@ def update_temp_figure(input_json):
             hovermode='closest'
         )
     }
+
+
+@application.callback(
+    Output('graph-loads', 'figure'),
+    [Input('saved-satellite-object', 'children')])
+def update_load_figure(input_json):
+    trackers = json.loads(input_json)
+
+    traces = []
+
+    offset = 0 
+    for load_name in trackers['loads'][0].keys():
+        traces.append(go.Scatter(
+            x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+            y=n.array([load[load_name][0] for load in trackers['loads']][::timings['plot_resolution']], n.int) + offset,
+            text=load_name,
+            mode='lines',
+            opacity=0.8,
+            name=load_name
+        ))
+        offset += 2
+
+
+    return {
+        'data': traces,
+        'layout': go.Layout(
+            xaxis={'title': 'Time (h)'},
+            yaxis={'title': 'State'},
+            margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
+            legend={'x': 0, 'y': 1},
+            hovermode='closest'
+        )
+    }
+
+
+@application.callback(
+    Output('graph-inst_current_load', 'figure'),
+    [Input('saved-satellite-object', 'children')])
+def update_load_current_figure(input_json):
+    trackers = json.loads(input_json)
+
+    traces = []
+
+    smoothing_window = 20.0
+    smoothing_kernel = n.ones(int(smoothing_window))/smoothing_window
+    for load_name in trackers['loads'][1].keys():
+        traces.append(go.Scatter(
+            x=([t / 3600 for t in trackers['time']])[::timings['plot_resolution']],
+            y=n.array([load[load_name][1]
+                       for load in trackers['loads']], n.int)[::timings['plot_resolution']],
+            text=load_name,
+            mode='lines',
+            opacity=0.8,
+            name=load_name
+        ))
+
+    return {
+        'data': traces,
+        'layout': go.Layout(
+            xaxis={'title': 'Time (h)'},
+            yaxis={'title': 'Battery Current from Load (mA)'},
+            margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
+            legend={'x': 0, 'y': 1},
+            hovermode='closest'
+        )
+    }
+
+
+
+@application.callback(
+    Output('graph-power_balance', 'figure'),
+    [Input('saved-satellite-object', 'children')])
+def update_pwr_figure(input_json):
+    trackers = json.loads(input_json)
+
+    traces = []
+
+    smoothing_window = 20
+    smoothing_kernel = n.ones(int(smoothing_window))/smoothing_window
+
+    traces.append(go.Scatter(
+        x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=(trackers['power_in'])[::timings['plot_resolution']],
+        text="Power IN to the satellite",
+        mode='lines',
+        opacity=0.8,
+        name='Power IN'
+    ))    
+    traces.append(go.Scatter(
+        x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=(trackers['power_out'])[::timings['plot_resolution']],
+        text="Power OUT of the satellite",
+        mode='lines',
+        opacity=0.8,
+        name='Power OUT'
+    ))    
+    traces.append(go.Scatter(
+        x=[t / 3600 for t in trackers['time']][::timings['plot_resolution']],
+        y=(trackers['power_net'])[::timings['plot_resolution']],
+        text="Net Power",
+        mode='lines',
+        opacity=0.8,
+        name='Net Power'
+    ))
+
+    return {
+        'data': traces,
+        'layout': go.Layout(
+            xaxis={'title': 'Time (h)'},
+            yaxis={'title': 'Power'},
+            margin={'l': 40, 'b': 40, 't': 10, 'r': 10},
+            legend={'x': 0, 'y': 1},
+            hovermode='closest'
+        )
+    }
+
 
 
 
