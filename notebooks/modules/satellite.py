@@ -20,7 +20,7 @@ class Satellite():
         """
 
         # Initialize power systems
-        self.battery_capacity_mAh = eps['battery_capacity_mAh']
+        self.battery_capacity_mAh = eps['battery_capacity_mAh'] #Key value pairs
         self.converter_efficiency = eps['converter_efficiency']
         self.charge = self.battery_capacity_mAh * eps['starting_charge_frac']
         self.solar_shunts = False

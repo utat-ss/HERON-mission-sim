@@ -14,7 +14,7 @@ power = eload.query_ascii_values("FETC:POW? ")
 
 
 areas_in = []
-with open(r'D:\Ali\Documents\UTAT\1000hr\heron_area_frac.csv','r') as csvFile:
+with open('.\heron_area_frac.csv','r') as csvFile:
     reader = csv.reader(csvFile)
     for row in reader:
         areas_in.append(n.float32(row[0]))
@@ -23,7 +23,7 @@ eload.write('CURR 0.01')
 for i in range(len(areas_in)):
     current_ma = 500 * 3 * 1 * areas_in[i] / 1000.0
 
-    dc_output = DC.write("APPL CH3, 5, ", str(current_ma))
+    dc_output = DC.write("APPL CH3, 3, ", str(current_ma))
     if i % 15 == 0:
         print ("Minute: ", i / 60.0)
         print ("Current (A): ", current_ma)
