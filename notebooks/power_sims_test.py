@@ -147,14 +147,14 @@ for i in range(len(supply_current_mA)):
         # ALERT #### ALERT #### ALERT #### ALERT #### ALERT #### ALERT #####
         ####################################################################
 
-        powerRequested = eload.write('POW ' + str(eload_power_mW[i]))
+        powerRequested = eload.write('POW ' + str(eload_power_mW[i] / 1000.0))
         #DC supply providing the power
-        powerIntoBatt = DC.write('APPL CH3, 5, ' + str(supply_current_mA[i]))
+        powerIntoBatt = DC.write('APPL CH3, 5, ' + str(supply_current_mA[i] / 1000.0))
 
         print("Parameters: ")
-        print('APPL CH3, ' + str(voltageBatt[i]) + ', ' + str(currentBatt[i]))
-        print('Power into the battery:' + str(powerToBatt[i]))
-        print('Power out of the battery:' + str(powerOutBatt[i]))
+        print('APPL CH3, 5, ' + str(supply_current_mA[i] / 1000.0))
+        print('Current into the battery:' + str(supply_current_mA[i] / 1000.0))
+        print('Power to eload:' + str(eload_power_mW[i] / 1000.0))
         print(' ')
         time.sleep(1) #change depending on how fast you want to simluation to be
         # simulation dt is 1, so this should be 1
