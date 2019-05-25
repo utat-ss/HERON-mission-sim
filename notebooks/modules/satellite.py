@@ -62,6 +62,7 @@ class Satellite():
         self.batt_current_in = 0
         self.batt_current_out = 0
         self.batt_current_net = self.batt_current_out - self.batt_current_in
+        self.max_solar_current_in_mA = 0 #solar current before shunting
 
         # the trackers dictionary contains all of the data needed
         self.trackers = {'time': []}
@@ -111,6 +112,7 @@ class Satellite():
             'power_in': self.batt_current_in * batt_v,
             'power_out': self.batt_current_out * batt_v,
             'power_net': - self.batt_current_net * batt_v,
+            'max_solar_current_in_mA': self.max_solar_current_in_mA
         }
         return all_state
 
@@ -231,6 +233,8 @@ class Satellite():
         # assume that charge is linear with area
         new_charge = self.charge + effective_area * \
             pv_cell_current_mA * (dt/3600)
+
+        self.max_solar_current_in_mA = effective_area * pv_cell_current_mA
 
         # Add to the battery, making sure we don't overcharge
         self.batt_current_in = ((min(new_charge, self.battery_capacity_mAh)) - self.charge) / (dt * 1.0 / 3600.0)
